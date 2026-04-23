@@ -1,8 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
-        <!-- Customize your theme here. -->
+    <!-- 🔹 Splash Theme -->
+    <style name="AppTheme" parent="Theme.SplashScreen">
+        <!-- Splash animation duration -->
+        <item name="windowSplashScreenAnimationDuration">150</item>
+
+        <!-- Splash background color -->
+        <item name="windowSplashScreenBackground">@color/splash_bg</item>
+
+        <!-- Theme after splash -->
+        <item name="postSplashScreenTheme">@style/Theme.App</item>
+    </style>
+
+    <!-- 🔹 App Theme -->
+    <style name="Theme.App" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <!-- IMPORTANT: same background to avoid white flash -->
+        <item name="android:windowBackground">@color/splash_bg</item>
+
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
     </style>
 
