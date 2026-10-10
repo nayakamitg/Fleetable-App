@@ -1,4 +1,4 @@
-package com.fleetable
+package com.fleetable.ai
 
 import android.app.Application
 import com.facebook.react.PackageList

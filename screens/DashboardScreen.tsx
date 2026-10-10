@@ -5,8 +5,8 @@ import {
   StyleSheet,
   useWindowDimensions,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { Text, Surface, useTheme } from 'react-native-paper';
 import {
@@ -88,11 +88,27 @@ const DashboardScreen = () => {
   );
   const { user, loggedIn } = useLoginContext();
 
+  console.log('Dashboard data=', statistics)
+
   useEffect(() => {
     if (user && user?.loginBranch && loggedIn) {
       dispatch<any>(fetchDashboardData({ branch: user?.loginBranch }));
     }
   }, [user, loggedIn]);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    if (!user?.loginBranch || !loggedIn) return;
+    setRefreshing(true);
+    try {
+      await dispatch<any>(fetchDashboardData({ branch: user.loginBranch }));
+      setRefreshing(false);
+    } catch (error) {
+      setRefreshing(false);
+      console.error('Error fetching dashboard data:', error);
+    }
+  }, [dispatch, user, loggedIn]);
 
   // Responsive logic - memoized to avoid recalculating on every render
   const { isTablet, cardWidth } = useMemo(() => {
@@ -115,7 +131,7 @@ const DashboardScreen = () => {
   }, [error]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header title="Tyre Dashboard" />
       {loading && (
         <View
@@ -143,6 +159,14 @@ const DashboardScreen = () => {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.COLORS.primary]}
+            tintColor={theme.COLORS.primary}
+          />
+        }
       >
         <View style={styles.breadcrumb}>
           <LayoutDashboard size={14} color={theme.COLORS.textSecondary} />
@@ -247,7 +271,7 @@ const DashboardScreen = () => {
           />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -4,15 +4,15 @@ import apiClient from '../../../apiClient';
 export const fetchDashboardData = createAsyncThunk(
   'dashboard/fetchDashboardData',
   async ({ branch }: { branch: string }, { rejectWithValue }) => {
-    console.log('Branch=', branch);
+    console.log('Dashboard Branch=', branch);
     try {
       // https://aiapi.dishaayein.com/api/Dashboard?branch=FLEET
       const response = await apiClient.get(`/Dashboard?branch=${branch}`);
       const data = response.data;
-      console.log('Data=', data);
+      console.log('Dashboard Data=', data);
       return data.data;
     } catch (error: any) {
-      console.log('Error=', error.response);
+      console.log('Dashboard Error=', error.response);
       const message =
         error.response?.data?.message ||
         error.message ||

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import {
   Camera as CameraIcon,
@@ -163,15 +164,17 @@ const FuelEntryScreen = () => {
     try {
       const aiResult = await analyzeFuelWithClaude(imgBase64);
       updateFuelData(aiResult);
-    } catch (err) {
-      if (
-        err?.includes('Image size is too large') ||
-        err?.message?.includes('Image size is too large')
-      ) {
-        setError('Image size is too large');
-        return;
+    } catch (err: any) {
+      const message: string = err?.message || String(err) || '';
+      if (message.includes('Image size is too large')) {
+        setError('Image size is too large. Please try a smaller or compressed image.');
+      } else if (message.includes('Network request failed') || message.includes('network')) {
+        setError('Please check your internet connection.');
+      } else if (message) {
+        setError(`AI Error: ${message}`);
+      } else {
+        setError('Analysis failed. Could not extract data from the image.');
       }
-      setError('Analysis Failed. Could not extract data from the image.');
     } finally {
       setIsAiProcessing(false);
     }
@@ -346,6 +349,20 @@ const FuelEntryScreen = () => {
     }
   }, [vehiclesError]);
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      resetScanState();
+      if (selectedVehicle?.vehicleNo) {
+        await dispatch(fetchFuelHistory(selectedVehicle.vehicleNo) as any);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dispatch, selectedVehicle, resetScanState]);
+
   const isScanning =
     cameraLoading ||
     galleryLoading ||
@@ -375,6 +392,14 @@ const FuelEntryScreen = () => {
         ref={scrollRef}
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
       >
         <View style={styles.header}>
           <Text style={styles.title}>Fuel Entry</Text>

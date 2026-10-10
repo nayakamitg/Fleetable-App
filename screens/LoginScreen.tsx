@@ -8,6 +8,7 @@ import {
   FlatList,
   TouchableOpacity,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   TextInput,
@@ -76,9 +77,11 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
     }
   }, [loggedIn, user, requiresCompanySelection, navigation]);
 
+  const insets = useSafeAreaInsets();
+
   if (requiresCompanySelection) {
     return (
-      <View style={[styles.container]}>
+      <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.content}>
           <View style={styles.logoContainer}>
             <Animated.Image
@@ -165,7 +168,7 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
   }
 
   return (
-    <View style={[styles.container,{paddingTop: theme.SPACING.xxl * 2}]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

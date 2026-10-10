@@ -32,7 +32,7 @@ export const Login = createAsyncThunk(
 const loginSlice = createSlice({
   name: 'login',
   initialState: {
-    user: null,
+    user: null as any,
     loading: false,
     error: null as string | null,
     loggedIn: false,
@@ -40,8 +40,9 @@ const loginSlice = createSlice({
     companies: [] as Company[],
   },
   reducers: {
+    // Restores full user object from AsyncStorage into Redux on app reopen
     setUser: (state, action) => {
-      state.user = action.payload;  
+      state.user = action.payload;
       state.loggedIn = !!action.payload;
     },
     clearLoginState: state => {
@@ -54,6 +55,7 @@ const loginSlice = createSlice({
       state.loggedIn = false;
       state.requiresCompanySelection = false;
       state.companies = [];
+      // Fire-and-forget: clear all persisted session data
       AsyncStorage.multiRemove([
         'token',
         'user_credentials',
@@ -80,12 +82,9 @@ const loginSlice = createSlice({
         state.requiresCompanySelection = false;
         state.companies = [];
 
-        // Save session data
+        // Persist full user data so it can be restored on app reopen
         AsyncStorage.setItem('token', data.token);
-        AsyncStorage.setItem(
-          'user_credentials',
-          JSON.stringify(data.sessionData),
-        );
+        AsyncStorage.setItem('user_credentials', JSON.stringify(data)); // save full data, not just sessionData
         AsyncStorage.setItem('user_logged_in', 'true');
         AsyncStorage.setItem('login_timestamp', Date.now().toString());
       } else {

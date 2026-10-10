@@ -53,9 +53,7 @@ export const addVehicleIssue = createAsyncThunk(
     } catch (error: any) {
       console.log('AddVehicleIssueError==>', error);
       return rejectWithValue(
-        error.response?.data?.message ||
-          error.message ||
-          'Failed to add vehicle issue',
+        JSON.stringify(error) || 'Failed to add vehicle issue',
       );
     }
   },
@@ -104,6 +102,9 @@ const vehicleIssueSlice = createSlice({
     resetAdded: state => {
       state.added = false;
     },
+    resetError: state => {
+      state.error = null;
+    },
   },
   extraReducers: builder => {
     builder
@@ -118,7 +119,7 @@ const vehicleIssueSlice = createSlice({
       })
       .addCase(getVehicleIssues.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to get vehicle issues';
+        state.error = (action.payload as string) || action.error.message || 'Failed to get vehicle issues';
       })
       .addCase(addVehicleIssue.pending, state => {
         console.log('Pending==>');
@@ -138,7 +139,7 @@ const vehicleIssueSlice = createSlice({
       .addCase(addVehicleIssue.rejected, (state, action) => {
         console.log('Failed==>', action.payload);
         state.addLoading = false;
-        state.error = action.error.message || 'Failed to add vehicle issue';
+        state.error = (action.payload as string) || action.error.message || 'Failed to add vehicle issue';
       })
       .addCase(removeVehicleIssue.pending, state => {
         state.loading = true;
@@ -153,7 +154,7 @@ const vehicleIssueSlice = createSlice({
       })
       .addCase(removeVehicleIssue.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to remove vehicle issue';
+        state.error = (action.payload as string) || action.error.message || 'Failed to remove vehicle issue';
       })
       .addCase(updateVehicleIssue.pending, state => {
         state.loading = true;
@@ -168,11 +169,11 @@ const vehicleIssueSlice = createSlice({
       })
       .addCase(updateVehicleIssue.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to update vehicle issue';
+        state.error = (action.payload as string) || action.error.message || 'Failed to update vehicle issue';
       });
   },
 });
 
-export const { resetAdded } = vehicleIssueSlice.actions;
+export const { resetAdded, resetError } = vehicleIssueSlice.actions;
 const { reducer } = vehicleIssueSlice;
 export default reducer;

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,7 +6,10 @@ import {
   TouchableOpacity,
   Alert,
   Image,
-  SafeAreaView,
+  Modal,
+  FlatList,
+  TouchableWithoutFeedback,
+  RefreshControl,
 } from 'react-native';
 import {
   Text,
@@ -28,6 +31,9 @@ import {
   Weight,
   CreditCard,
   ClipboardList,
+  ChevronDown,
+  Check,
+  CheckCircle,
 } from 'lucide-react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { COLORS, SIZES, SPACING } from '../constants/theme';
@@ -39,117 +45,240 @@ import {
   uploadSlip,
   saveSlip,
   clearSlipData,
+  getPrompts,
 } from '../services/globalStorage/rudux/slices/SlipSlice';
 import { convertToStandardDate } from '../components/Others/Functions';
+
+const initialFormData = {
+  chId: '',
+  truckNo: '',
+  driverId: '',
+  chNo: '',
+  date: new Date().toISOString().split('T')[0].split('-').reverse().join('/'),
+  owner: '',
+  loadStation: '',
+  chDest: '',
+  tWt: '',
+  truckFreight: '',
+  advance: '',
+  lbrCgr: '',
+  addOther: '',
+  lessOther: '',
+  netTrfreight: '',
+  status: '',
+  cBy: '',
+  cDate: '',
+  luBy: '',
+  luDate: '',
+  lock: '',
+  tripID: '',
+  agentId: '',
+  commission: '',
+  grNo: '',
+  consignor: '',
+  consignee: '',
+  goodsDesc: '',
+  totPkg: '',
+  trnsId: '',
+  chNote: '',
+  unldDate: '',
+  unldChrg: '',
+  unldBy: '',
+  unldNote: '',
+  tds: '',
+  payableAt: '',
+  transporter: '',
+  payableBy: '',
+  advToBranch: '',
+  rate: '',
+  bkgFreight: '',
+  unldWeight: '',
+  branch: '',
+  shortage: '',
+  ownerPan: '',
+  commisionPaidBy: '',
+  paidDate: '',
+  grDate: '',
+  packageType: '',
+  weightPerPackage: '',
+  freightType: '',
+  rateType: '',
+  extraTruckFreight: '',
+  greenTax: '',
+  balanceRecievedBy: '',
+  lessMulsiana: '',
+  lessClaim: '',
+  detention: '',
+  minimumWeight: '',
+  amount: '',
+  invoiceNo: '',
+  customerName: '',
+  invoiceDate: '',
+  hsn: '',
+  driverName: '',
+  podrReceivedBy: '',
+  isPodRecieved: '',
+  podDate: '',
+  deliveryDate: '',
+  reportingDate: '',
+  delayReason: '',
+  podRemark: '',
+  loadStationText: '',
+  chDestText: '',
+  tax1: '',
+  tax2: '',
+  ownerFreight: '',
+  tripNoPrefix: '',
+  tripNoSuffix: '',
+  manualTripNo: '',
+  hastime: '',
+  isOwnGr: '',
+  originName: '',
+  originAddress: '',
+  originCity: '',
+  originState: '',
+  originCountry: '',
+  originPinCode: '',
+  originLatitude: '',
+  originLongitude: '',
+  destinationName: '',
+  destinationAddress: '',
+  destinationCity: '',
+  destinationState: '',
+  destinationCountry: '',
+  destinationPinCode: '',
+  destinationLatitude: '',
+  destinationLongitude: '',
+  taxableValue: '',
+  taxGroup: '',
+  tripDistance: '',
+  tripDistanceUnit: '',
+  tripDuration: '',
+  tripDurationUnit: '',
+  tripWeight: '',
+  tripWeightUnit: '',
+  shipToParty: '',
+  vehicleType: '',
+  vehicleOwner: '',
+  vehicleOwnership: '',
+  expectedCompletedDate: '',
+  tripStatus: '',
+  completedBy: '',
+  completedDate: '',
+  completeKms: '',
+  podSubmitDate: '',
+  rcvdPkgs: '',
+  rcvdWeight: '',
+  startKM: '',
+  customFieldJSON: '',
+  tripStartDate: '',
+  tripEndDate: '',
+  returnDestination: '',
+  ownFreight: '',
+  accountCtrl2: '',
+  userAgent: '',
+  helper: '',
+  descriptions: '',
+};
+
+
 
 const SlipInspectionScreen = () => {
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
-  const { loading: isAnalyzing, saving: isSaving } = useSelector(
+  const { prompts,promptError,promptLoading, loading: isAnalyzing, saving: isSaving, error } = useSelector(
     (state: RootState) => state.slip,
   );
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [base64Image, setBase64Image] = useState<string | null>(null);
+  const [selectedPromptId, setSelectedPromptId] = useState<string>('1');
+  const [promptModalVisible, setPromptModalVisible] = useState(false);
 
-  const [formData, setFormData] = useState({
-    truckNo: '',
-    driverId: '',
-    driverName: '',
-    chNo: '',
-    date: new Date().toISOString().split('T')[0].split('-').reverse().join('/'),
-    owner: '',
-    loadStation: '',
-    chDest: '',
-    tWt: '',
-    truckFreight: '',
-    advance: '',
-    lbrCgr: '0',
-    addOther: '0',
-    lessOther: '0',
-    netTrFreight: '0',
-    tripId: '',
-    agentId: '',
-    commission: '0',
-    grNo: '',
-    consignor: '',
-    consignee: '',
-    goodsDesc: '',
-    totPkg: '',
-    trnsId: '',
-    chNote: '',
-    tds: '0',
-    transporter: '',
-    rate: '0',
-    bkgFreight: '0',
-    branch: '',
-    freightType: '',
-    rateType: '',
-    packageType: '',
-    invoiceNo: '',
-    hsn: '',
-    grDate: '',
-    descriptions: '',
-  });
+  const [formData, setFormData] = useState(initialFormData);
 
   const handleInputChange = useCallback((field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   }, []);
 
-  const handleImageCapture = useCallback(async (type: 'camera' | 'library') => {
-    const options = {
-      mediaType: 'photo' as const,
-      includeBase64: true,
-      quality: 0.7,
-    };
+  const handleImageCapture = useCallback(
+    async (type: 'camera' | 'library') => {
+      const options = {
+        mediaType: 'photo' as const,
+        includeBase64: true,
+        quality: 0.7,
+      };
 
-    const result =
-      type === 'camera'
-        ? await launchCamera(options)
-        : await launchImageLibrary(options);
+      const result =
+        type === 'camera'
+          ? await launchCamera(options)
+          : await launchImageLibrary(options);
 
-    if (result.didCancel || !result.assets?.[0]?.base64) return;
+      if (result.didCancel || !result.assets?.[0]?.base64) return;
 
-    const base64 = result.assets[0].base64;
-    setImageUri(result.assets[0].uri || null);
-
-    try {
-      const resultAction = await dispatch(uploadSlip(result.assets[0].uri));
-
-      if (uploadSlip.fulfilled.match(resultAction)) {
-        const aiData = resultAction.payload;
-        setFormData(prev => ({
-          ...prev,
-          truckNo: aiData.truckNo || prev.truckNo,
-          driverName: aiData.driverName || prev.driverName,
-          grNo: aiData.grNo || prev.grNo,
-          grDate: aiData.date || prev.grDate,
-          loadStation: aiData.loadStation || prev.loadStation,
-          chDest: aiData.chDest || prev.chDest,
-          consignor: aiData.consignor || prev.consignor,
-          consignee: aiData.consignee || prev.consignee,
-          goodsDesc: aiData.goodsDesc || prev.goodsDesc,
-          totPkg: aiData.totPkg?.toString() || prev.totPkg,
-          tWt: aiData.tWt?.toString() || prev.tWt,
-          truckFreight: aiData.truckFreight?.toString() || prev.truckFreight,
-          advance: aiData.advance?.toString() || prev.advance,
-          invoiceNo: aiData.invoiceNo || prev.invoiceNo,
-          packageType: aiData.packageType || prev.packageType,
-          descriptions: aiData.message || 'Slip data extracted successfully',
-        }));
-        Alert.alert(
-          'Success',
-          aiData.message || 'Slip data extracted successfully!',
-        );
-      } else {
-        Alert.alert(
-          'Scan Failed',
-          (resultAction.payload as string) || 'Failed to extract data',
-        );
+      const base64 = result.assets[0].base64;
+      setImageUri(result.assets[0].uri || null);
+      if (base64) {
+        setBase64Image(base64);
       }
-    } catch (error) {
-      console.log('OCR Error:', error);
-      Alert.alert('Error', 'An error occurred during slip analysis.');
+
+      try {
+        const resultAction = await dispatch(
+          uploadSlip({ imageUri: result.assets[0].uri, promptId: selectedPromptId || undefined })
+        );
+
+        if (uploadSlip.fulfilled.match(resultAction)) {
+          const responseData = resultAction.payload;
+          const aiData = responseData?.data || {};
+
+          const cleanedAiData = Object.keys(aiData).reduce((acc, key) => {
+            acc[key] =
+              aiData[key] === null ? '' : aiData[key]?.toString() || '';
+            return acc;
+          }, {} as any);
+
+          setFormData(prev => ({
+            ...prev,
+            ...cleanedAiData,
+            descriptions:
+              responseData?.message || 'Slip data extracted successfully',
+          }));
+          Alert.alert(
+            'Success',
+            responseData?.message || 'Slip data extracted successfully!',
+          );
+        } else {
+          Alert.alert(
+            'Scan Failed',
+            (resultAction.payload as string) || 'Failed to extract data',
+          );
+        }
+      } catch (error) {
+        console.log('OCR Error:', error);
+        Alert.alert('Error', 'An error occurred during slip analysis.');
+      }
+    },
+    [dispatch, selectedPromptId],
+  );
+
+
+  useEffect(() => {
+    dispatch(getPrompts());
+  }, []);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      setImageUri(null);
+      setBase64Image(null);
+      setFormData(initialFormData);
+      await dispatch(getPrompts() as any);
+    } finally {
+      setRefreshing(false);
     }
   }, [dispatch]);
+
 
   const handleSave = useCallback(async () => {
     try {
@@ -161,25 +290,15 @@ const SlipInspectionScreen = () => {
           .split('-')
           .reverse()
           .join('/'),
-        tWt: parseFloat(formData.tWt) || 0,
-        truckFreight: parseFloat(formData.truckFreight) || 0,
-        advance: parseFloat(formData.advance) || 0,
-        lbrCgr: parseFloat(formData.lbrCgr) || 0,
-        addOther: parseFloat(formData.addOther) || 0,
-        lessOther: parseFloat(formData.lessOther) || 0,
-        netTrFreight: parseFloat(formData.netTrFreight) || 0,
-        commission: parseFloat(formData.commission) || 0,
-        totPkg: parseInt(formData.totPkg) || 0,
-        tds: parseFloat(formData.tds) || 0,
-        rate: parseFloat(formData.rate) || 0,
-        bkgFreight: parseFloat(formData.bkgFreight) || 0,
-        grDate: convertToStandardDate(formData.grDate),
+        grDate: formData.grDate ? convertToStandardDate(formData.grDate) : '',
+        invoiceDate: formData.invoiceDate ? convertToStandardDate(formData.invoiceDate) : '',
+        base64Image: base64Image || '',
       };
 
-      if (!payload.grDate) {
-        Alert.alert('Error', 'Please enter a valid GR date format DD-MM-YYYY.');
-        return;
-      }
+      // if (!payload.grDate) {
+      //   Alert.alert('Error', 'Please enter a valid GR date format DD-MM-YYYY.');
+      //   return;
+      // }
 
       const resultAction = await dispatch(saveSlip(payload));
 
@@ -189,50 +308,16 @@ const SlipInspectionScreen = () => {
             text: 'OK',
             onPress: () => {
               setImageUri(null);
+              setBase64Image(null);
               dispatch(clearSlipData());
               setFormData({
-                truckNo: '',
-                driverId: '',
-                driverName: '',
-                chNo: '',
+                ...initialFormData,
                 date: new Date()
                   .toISOString()
                   .split('T')[0]
                   .split('-')
                   .reverse()
                   .join('/'),
-                owner: '',
-                loadStation: '',
-                chDest: '',
-                tWt: '',
-                truckFreight: '',
-                advance: '',
-                lbrCgr: '0',
-                addOther: '0',
-                lessOther: '0',
-                netTrFreight: '0',
-                tripId: '',
-                agentId: '',
-                commission: '0',
-                grNo: '',
-                consignor: '',
-                consignee: '',
-                goodsDesc: '',
-                totPkg: '',
-                trnsId: '',
-                chNote: '',
-                tds: '0',
-                transporter: '',
-                rate: '0',
-                bkgFreight: '0',
-                branch: '',
-                freightType: '',
-                rateType: '',
-                packageType: '',
-                invoiceNo: '',
-                hsn: '',
-                grDate: '',
-                descriptions: '',
               });
             },
           },
@@ -249,34 +334,42 @@ const SlipInspectionScreen = () => {
     }
   }, [dispatch, formData]);
 
-  const renderInput = useCallback((
-    label: string,
-    field: string,
-    icon: any,
-    placeholder = '',
-  ) => (
-    <View style={styles.inputContainer}>
-      <View style={styles.iconWrapper}>
-        {React.createElement(icon, { size: 20, color: COLORS.primary })}
+  const renderInput = useCallback(
+    (label: string, field: string, icon: any, placeholder = '') => (
+      <View style={styles.inputContainer}>
+        <View style={styles.iconWrapper}>
+          {React.createElement(icon, { size: 20, color: COLORS.primary })}
+        </View>
+        <TextInput
+          label={label}
+          value={formData[field as keyof typeof formData]}
+          onChangeText={val => handleInputChange(field, val)}
+          mode="outlined"
+          style={styles.input}
+          placeholder={placeholder}
+          outlineColor={COLORS.border}
+          activeOutlineColor={COLORS.primary}
+          dense
+        />
       </View>
-      <TextInput
-        label={label}
-        value={formData[field as keyof typeof formData]}
-        onChangeText={val => handleInputChange(field, val)}
-        mode="outlined"
-        style={styles.input}
-        placeholder={placeholder}
-        outlineColor={COLORS.border}
-        activeOutlineColor={COLORS.primary}
-        dense
-      />
-    </View>
-  ), [formData, handleInputChange]);
+    ),
+    [formData, handleInputChange],
+  );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header title="Slip Inspection" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
+      >
         <View style={styles.header}>
           <Text style={styles.title}>Slip Inspection</Text>
           <Text style={styles.subtitle}>AI-Powered Fleet Safety</Text>
@@ -287,6 +380,22 @@ const SlipInspectionScreen = () => {
           <Text style={styles.cardSubtitle}>
             Upload or capture an image to extract details
           </Text>
+
+          <TouchableOpacity
+            style={styles.promptDropdown}
+            onPress={() => setPromptModalVisible(true)}
+          >
+            <Text style={styles.promptDropdownText}>
+              {prompts?.find((p: any) => p.promptID === selectedPromptId)?.promptName || 'Select Prompt (Optional)'}
+            </Text>
+            <ChevronDown size={20} color={COLORS.textSecondary} />
+          </TouchableOpacity>
+
+          {(promptError || error) && (
+            <Text style={{ color: COLORS.error, fontSize: SIZES.sm, marginTop: -SPACING.sm, marginBottom: SPACING.md, alignSelf: 'flex-start', paddingHorizontal: 4 }}>
+              {String(promptError || error)}
+            </Text>
+          )}
 
           <View style={styles.imagePreviewContainer}>
             {imageUri ? (
@@ -335,7 +444,7 @@ const SlipInspectionScreen = () => {
 
         <Surface style={styles.formCard} elevation={1}>
           <Text style={styles.sectionTitle}>Slip Details</Text>
-
+          {renderInput('Customer Name', 'customerName', User, 'e.g. Acme Corp')}
           {renderInput('Truck Number', 'truckNo', Truck, 'e.g. DN09R93277')}
           {renderInput('Driver Name', 'driverName', User, 'e.g. Rocher')}
           {renderInput('GR Number', 'grNo', ClipboardList, 'e.g. 011396')}
@@ -376,6 +485,7 @@ const SlipInspectionScreen = () => {
           </View>
 
           {renderInput('Invoice Number', 'invoiceNo', FileText)}
+          {renderInput('Invoice Date', 'invoiceDate', Calendar, 'dd/MM/yyyy')}
           {renderInput('Package Type', 'packageType', Package)}
           {renderInput('Descriptions', 'descriptions', FileText)}
         </Surface>
@@ -393,7 +503,71 @@ const SlipInspectionScreen = () => {
           {isSaving ? 'Saving...' : 'Save to Trip'}
         </Button>
       </ScrollView>
-    </SafeAreaView>
+
+      {/* Prompt Selection Modal */}
+      <Modal
+        visible={promptModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setPromptModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setPromptModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Select Prompt</Text>
+                  <TouchableOpacity onPress={() => setPromptModalVisible(false)}>
+                    <Text style={styles.closeButtonText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+                {promptLoading ? (
+                  <ActivityIndicator color={COLORS.primary} size="small" />
+                ) : (
+                  <FlatList
+                    data={prompts}
+                    keyExtractor={(item, index) => item.promptID || index.toString()}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={styles.promptItem}
+                        onPress={() => {
+                          setSelectedPromptId(item.promptID);
+                          setPromptModalVisible(false);
+                        }}
+                      >
+                        <View style={{ flex: 1, paddingRight: SPACING.md }}>
+                          <Text style={styles.promptItemText}>{item.promptName}</Text>
+                          {item.detailedPrompt ? (
+                            <Text style={styles.detailedPromptText} numberOfLines={2}>
+                              {item.detailedPrompt.replace(/\r\n|\n/g, ' ').trim()}
+                            </Text>
+                          ) : null}
+                        </View>
+                        {selectedPromptId === item.promptID && (
+                          <CheckCircle size={20} color={COLORS.success} />
+                        )}
+                      </TouchableOpacity>
+                    )}
+                    ListEmptyComponent={
+                      <Text style={styles.emptyText}>No prompts available</Text>
+                    }
+                  />
+                )}
+                <TouchableOpacity
+                   style={styles.promptItem}
+                   onPress={() => {
+                     setSelectedPromptId('1');
+                     setPromptModalVisible(false);
+                   }}
+                 >
+                   <Text style={[styles.promptItemClear, { color: COLORS.error,width:"100%",textAlign:'right' }]}>Clear Selection</Text>
+                 </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </View>
   );
 };
 
@@ -438,6 +612,76 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.md,
     position: 'relative',
+  },
+  promptDropdown: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    padding: SPACING.md,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    marginBottom: SPACING.md,
+  },
+  promptDropdownText: {
+    fontSize: SIZES.md,
+    color: COLORS.text,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: SPACING.lg,
+    maxHeight: '60%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  modalTitle: {
+    fontSize: SIZES.lg,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  closeButtonText: {
+    color: COLORS.primary,
+    fontSize: SIZES.md,
+    fontWeight: '600',
+  },
+  promptItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 0.5,
+    borderBottomColor: COLORS.border,
+  },
+  promptItemText: {
+    fontSize: SIZES.md,
+    color: COLORS.text,
+  },
+  promptItemClear: {
+    fontSize: SIZES.md,
+    color: COLORS.text,
+  },
+  detailedPromptText: {
+    fontSize: SIZES.sm,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: COLORS.textSecondary,
+    marginVertical: SPACING.lg,
   },
   header: {
     marginBottom: SPACING.md,

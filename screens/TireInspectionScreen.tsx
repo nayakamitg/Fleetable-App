@@ -8,6 +8,7 @@ import {
   Alert,
   Modal,
   TouchableWithoutFeedback,
+  RefreshControl,
 } from 'react-native';
 import {
   Camera as CameraIcon,
@@ -150,6 +151,20 @@ const SlipInspectionScreen = () => {
       Alert.alert('Error', error);
     }
   }, [error]);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      setTiresData([]);
+      setInspectedTireIds([]);
+      setScannedImage(null);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   const handleGlobalCamera = useCallback(() => {
     setShowOptions(true);
   }, []);
@@ -208,7 +223,17 @@ const SlipInspectionScreen = () => {
     <>
       <Header title="Tire Inspection" />
       <View style={styles.container}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
+        >
           <View style={styles.header}>
             <Text style={styles.title}>Tire Inspection</Text>
             <Text style={styles.subtitle}>AI-Powered Fleet Safety</Text>

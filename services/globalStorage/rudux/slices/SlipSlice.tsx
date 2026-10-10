@@ -3,7 +3,7 @@ import apiClient from '../../../apiClient';
 
 export const uploadSlip = createAsyncThunk(
   'slip/uploadSlip',
-  async (imageUri: string, { rejectWithValue }) => {
+  async ({ imageUri, promptId }: { imageUri: string, promptId?: string }, { rejectWithValue }) => {
     try {
       const formDataBody = new FormData();
       formDataBody.append('image', {
@@ -12,8 +12,12 @@ export const uploadSlip = createAsyncThunk(
         type: 'image/jpeg',
       } as any);
 
+      if (promptId) {
+        formDataBody.append('promptId', promptId);
+      }
+
       const response = await apiClient.post(
-        '/SlipToTrip/ocr/upload',
+        '/SlipToTrip/smart/ocr/upload',
         formDataBody,
         {
           headers: {
@@ -42,11 +46,28 @@ export const saveSlip = createAsyncThunk(
   async (payload: any, { rejectWithValue }) => {
     try {
      
-      const response = await apiClient.post('/SlipToTrip', payload);
+      const response = await apiClient.post('/SlipToTrip/postscan', payload);
       const data = response.data;
       return data;
     } catch (error: any) {
       const message = error.response?.data?.message || error.message || 'Failed to save slip';
+      console.log('error',error.response);
+      return rejectWithValue(message);
+    }
+  },
+);
+
+export const getPrompts = createAsyncThunk(
+  'slip/getPrompts',
+  async (_, { rejectWithValue }) => {
+    try {
+     
+      const response = await apiClient.get('/SlipToTrip/prompts');
+      console.log('Prompt response.data:', response.data);
+      const data = response.data?.data || response.data || [];
+      return data;
+    } catch (error: any) {
+      const message = error.response?.data?.message || error.message || 'Failed to get prompts';
       console.log('error',error.response);
       return rejectWithValue(message);
     }
@@ -60,6 +81,10 @@ const slipSlice = createSlice({
     saving: false,
     error: null as string | null,
     slipData: null as any,
+    prompts:[] as any[],
+    promptLoading:false,
+    promptError:null as any | null,
+    
   },
   reducers: {
     clearSlipData: state => {
@@ -93,6 +118,19 @@ const slipSlice = createSlice({
       .addCase(saveSlip.rejected, (state, action) => {
         state.saving = false;
         state.error = action.payload as string;
+      })
+      .addCase(getPrompts.pending, state => {
+        state.promptLoading = true;
+        state.promptError = null;
+      })
+      .addCase(getPrompts.fulfilled, (state, action) => {
+        state.promptLoading = false;
+        state.prompts = action.payload;
+        state.promptError = null;
+      })
+      .addCase(getPrompts.rejected, (state, action) => {
+        state.promptLoading = false;
+        state.promptError = action.payload as any;
       });
   },
 });

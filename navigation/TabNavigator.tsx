@@ -90,7 +90,7 @@ const TabNavigator = () => {
         }}
       />
       
-      <Tab.Screen
+      {/* <Tab.Screen
         name="Inspect"
         component={withSuspense(InspectScreen)}
         options={{
@@ -98,7 +98,7 @@ const TabNavigator = () => {
           title: 'Inspect',
           headerShown: false,
         }}
-      />
+      /> */}
       <Tab.Screen
         name="Slip"
         component={withSuspense(SlipInspectionScreen)}

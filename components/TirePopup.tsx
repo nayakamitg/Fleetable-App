@@ -42,35 +42,49 @@ const TirePopup = ({
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [AIresult, setAIresult] = useState<any>(null);
   const [isScanning, setIsScanning] = useState(false);
-  const { openCamera, cameraLoading, cameraError, base64, scannedImage } =
+  const { openCamera, cameraLoading, cameraError, base64, scannedImage, resetCamera } =
     useCamera();
 
-  // Load saved tire data when popup opens
+  // Load saved tire data when popup opens; reset all fields when it closes
   useEffect(() => {
-    if (tire && visible) {
-      // Find saved data for this tire
+    if (visible && tire) {
+      // Find previously saved data for this tire
       const savedTire = tiresData.find(t => t.id === tire.id);
 
       if (savedTire) {
-        // Load saved data
         setPressure(savedTire.pressure || '');
         setIssues(savedTire.issues || '');
         setCNSD(savedTire.CNSD || '');
         setLNSD(savedTire.LNSD || '');
         setRNSD(savedTire.RNSD || '');
+        setNSD('');
         setPhotoUri(savedTire.photoUri || null);
       } else {
-        // Reset to default values for new inspection
+        // Fresh inspection — only pre-fill default pressure
         setPressure(tire.pressure || '');
         setIssues('');
         setCNSD('');
         setLNSD('');
         setRNSD('');
+        setNSD('');
         setPhotoUri(null);
       }
       setAIresult(null);
+    } else if (!visible) {
+      // Reset everything when popup closes (including camera image)
+      setPressure('');
+      setIssues('');
+      setCNSD('');
+      setLNSD('');
+      setRNSD('');
+      setNSD('');
+      setPhotoUri(null);
+      setAIresult(null);
+      setIsScanning(false);
+      resetCamera();
     }
-  }, [tire, visible, tiresData]);
+  }, [visible, tire, tiresData]);
+
 
   const scanFromAi = async () => {
     try {

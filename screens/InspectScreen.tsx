@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Alert,
   Image,
   useWindowDimensions,
+  RefreshControl,
 } from 'react-native';
 import {
   Trash2,
@@ -39,6 +40,7 @@ import {
   updateVehicleIssue,
   VehicleIssue,
   resetAdded,
+  resetError,
 } from '../services/globalStorage/rudux/slices/vehicleIssueSlice';
 import { useLoginContext } from '../services/globalStorage/contextApi/loginContext';
 
@@ -99,7 +101,7 @@ const InspectScreen = () => {
   const [aiResults, setAiResults] = useState<any[]>([]);
   const dispatch = useDispatch();
   const [showSelectVehicleError, setShowSelectVehicleError] = useState(false);
-  const { vehicleIssues, added, addLoading } = useSelector(
+  const { vehicleIssues, added, addLoading, error } = useSelector(
     (state: any) => state.vehicleIssues,
   );
   const [issues, setIssues] = useState<VehicleIssue[]>([]);
@@ -119,6 +121,19 @@ const InspectScreen = () => {
     }
   }, [selectedVehicle]);
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (selectedVehicle?.vehicleNo) {
+        await dispatch(getVehicleIssues(selectedVehicle.vehicleNo) as any);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dispatch, selectedVehicle]);
+
   useEffect(() => {
     if (added) {
       setShowEssuePopup(false);
@@ -126,7 +141,14 @@ const InspectScreen = () => {
       setIssueInput('');
       dispatch(resetAdded());
     }
-  }, [added]);
+  }, [added, dispatch]);
+
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error', error);
+      dispatch(resetError());
+    }
+  }, [error, dispatch]);
 
   console.log('vehicleIssues', vehicleIssues);
 
@@ -330,6 +352,14 @@ const InspectScreen = () => {
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
         >
           {/* Header */}
           <Text style={styles.title}>Inspect Vehicle</Text>
@@ -859,8 +889,8 @@ export const NewIssues = ({
       {selectedVehicle ? (
         <View style={styles.issuesContainer}>
           {issues.length > 0 ? (
-            issues.map((issue: any) => (
-              <View key={issue?.issueId} style={styles.issueItem}>
+            issues.map((issue: any, index: number) => (
+              <View key={issue?.issueId || index} style={styles.issueItem}>
                 {issue?.base64Image && (
                   <TouchableOpacity
                     onPress={() =>

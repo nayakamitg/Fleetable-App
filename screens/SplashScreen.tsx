@@ -1,55 +1,61 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text } from 'react-native-paper';
 import theme from '../constants/theme';
 import Animated from 'react-native-reanimated';
 import { useDispatch } from 'react-redux';
-import { logout } from '../services/globalStorage/rudux/slices/loginSlice';
+import { logout, setUser } from '../services/globalStorage/rudux/slices/loginSlice';
+
+// Session validity: 20 days in milliseconds
+const SESSION_VALIDITY_MS = 20 * 24 * 60 * 60 * 1000;
 
 const SplashScreen = ({ navigation }: { navigation: any }) => {
   const dispatch = useDispatch();
-  const handleLogout = async () => {
-    dispatch(logout());
-  };
-
-  // useEffect(() => {
-  //   handleLogout();
-  // }, []);
-
-
 
   useEffect(() => {
-    const checkLoginStatus = async () => {
+    const restoreSession = async () => {
       try {
-        const token = await AsyncStorage.getItem('token');
-        const timestamp = await AsyncStorage.getItem('login_timestamp');
-        const userLogged = await AsyncStorage.getItem('user_logged_in');
+        const [token, userCredentialsRaw, userLogged, timestampRaw] =
+          await AsyncStorage.multiGet([
+            'token',
+            'user_credentials',
+            'user_logged_in',
+            'login_timestamp',
+          ]);
 
-        // Check if session is valid (5 days)
-        const fiveDaysInMs = 20 * 24 * 60 * 60 * 1000;
+        const tokenVal        = token[1];
+        const userCredentials = userCredentialsRaw[1];
+        const isLogged        = userLogged[1] === 'true';
+        const timestamp       = timestampRaw[1] ? parseInt(timestampRaw[1], 10) : 0;
+
         const isSessionValid =
-          token &&
-          timestamp &&
-          userLogged === 'true' &&
-          Date.now() - parseInt(timestamp, 10) < fiveDaysInMs;
+          !!tokenVal &&
+          !!userCredentials &&
+          isLogged &&
+          Date.now() - timestamp < SESSION_VALIDITY_MS;
 
-        // Simulate a short delay for splash effect
         setTimeout(() => {
           if (isSessionValid) {
+            // Restore full user object into Redux so all screens have user data
+            const parsedUser = JSON.parse(userCredentials!);
+            dispatch(setUser(parsedUser));
             navigation.replace('MainTabs');
           } else {
+            // Session expired or missing — clear stale data and go to Login
+            dispatch(logout());
             navigation.replace('Login');
           }
         }, 1500);
       } catch (error) {
-        console.error('Error checking login status:', error);
+        console.error('Error restoring session:', error);
+        dispatch(logout());
         navigation.replace('Login');
       }
     };
 
-    checkLoginStatus();
-  }, [navigation]);
+    restoreSession();
+  }, [navigation, dispatch]);
 
   return (
     <View style={styles.container}>

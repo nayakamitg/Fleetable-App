@@ -6,6 +6,7 @@ const LoginContext = createContext({
     user: null,
     loading: false,
     error: null,
+    
 });
 
 const LoginContextProvider = ({ children }: { children: React.ReactNode }) => {

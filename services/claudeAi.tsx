@@ -23,7 +23,7 @@ export const analyzeTireWithClaude = async (base64Image: string) => {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 800,
         messages: [
           {
@@ -83,11 +83,11 @@ export const analyzeFuelWithClaude = async (base64Image: string) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': Config.CLAUDE_API_KEY as string, // 🔴 DO NOT USE process.env
+        'x-api-key': Config.CLAUDE_API_KEY as string,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         messages: [
           {
@@ -116,10 +116,13 @@ export const analyzeFuelWithClaude = async (base64Image: string) => {
     const data = await response.json();
     console.log('Claude Response:', data);
 
-    if (data?.error?.message?.includes('image exceeds 5 MB maximum')) {
-      throw new Error(
-        'Image size is too large (Claude 5MB limit). Please try a smaller or more compressed image.',
-      );
+    // Handle API-level errors (invalid key, quota, overloaded, etc.)
+    if (data?.error) {
+      const apiErrMsg: string = data.error.message || 'AI API error';
+      if (apiErrMsg.includes('image exceeds 5 MB maximum')) {
+        throw new Error('Image size is too large (Claude 5MB limit). Please try a smaller or more compressed image.');
+      }
+      throw new Error(apiErrMsg);
     }
 
     const text =
@@ -133,28 +136,8 @@ export const analyzeFuelWithClaude = async (base64Image: string) => {
     return parseClaudeJson(text);
   } catch (error: any) {
     console.log('Claude AI Error:', error);
-
-    const isNetworkError = error?.message?.includes('Network request failed');
-    const isSizeError =
-      error?.message?.includes('image exceeds 5 MB maximum') ||
-      error?.message?.includes('Image size is too large');
-
-    const errorResult = {
-      fuelType: 'Unknown',
-      recieptNo: 'Unknown',
-      Quantity: 'Unknown',
-      Price: 'Unknown',
-      Total: 'Unknown',
-      Date: 'Unknown',
-      Time: 'Unknown',
-      Vehicle: 'Unknown',
-      networkError: isNetworkError,
-      error: isSizeError
-        ? 'Image size is too large'
-        : error?.message || 'AI request failed',
-    };
-
-    return errorResult;
+    // Re-throw so the caller (searchFromAi) can handle with the correct error message
+    throw error;
   }
 };
 
@@ -168,7 +151,7 @@ export const analyzeNumberPlateWithClaude = async (base64Image: string) => {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         messages: [
           {
@@ -241,7 +224,7 @@ export const analyzeVehicleDamageWithClaude = async (base64Image: string) => {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         messages: [
           {
